@@ -1,0 +1,1122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Desk Posture Check</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='22' fill='%232c56c9'/%3E%3Ccircle cx='67.8' cy='25' r='8' fill='%23fff'/%3E%3Cpath d='M24 57 L40 75 L60 39' stroke='%23fff' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working screen. Video with live overlay on the left, "right now" + session report on the right, timeline underneath. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f6f8fa; --ink: #16202b; --muted: #5a6876; --line: #dbe1e7;
+  --accent: #2c56c9; --accent-ink: #ffffff; --accent-soft: #e3eafb;
+  --s1: #2c56c9; --s2: #a2449b; --s3: #17808e;
+  --good: #1c9466; --fair: #c98a10; --poor: #d3433a; --none: #9aa5b1;
+  --good-bg: #e2f3ec; --fair-bg: #fbf0d9; --poor-bg: #fbe4e2;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #161d25; --surface-2: #1c242e; --ink: #e5ebf1; --muted: #93a0ae; --line: #28323d;
+    --accent: #7d9cff; --accent-ink: #0e1319; --accent-soft: #1d2847;
+    --s1: #7d9cff; --s2: #d97fd0; --s3: #4cc3cf;
+    --good: #3cc48d; --fair: #efb544; --poor: #ff6a5c; --none: #5f6b78;
+    --good-bg: #133227; --fair-bg: #352a12; --poor-bg: #3a1a18;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #161d25; --surface-2: #1c242e; --ink: #e5ebf1; --muted: #93a0ae; --line: #28323d;
+  --accent: #7d9cff; --accent-ink: #0e1319; --accent-soft: #1d2847;
+  --s1: #7d9cff; --s2: #d97fd0; --s3: #4cc3cf;
+  --good: #3cc48d; --fair: #efb544; --poor: #ff6a5c; --none: #5f6b78;
+  --good-bg: #133227; --fair-bg: #352a12; --poor-bg: #3a1a18;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); display: flex; flex-direction: column; overflow: hidden; }
+[hidden] { display: none !important; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; margin: 0; text-wrap: balance; }
+button, select, input { font: inherit; color: inherit; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* header */
+.bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; background: var(--surface);
+  border-bottom: 1px solid var(--line); padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+#openLbl, #camBtn { margin-right: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.camerr { color: var(--poor) !important; font-weight: 500; }
+.live { display: inline-flex; align-items: center; gap: 6px; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--poor); animation: blink 1.6s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+.below .field select { padding: 3px 6px; max-width: 220px; }
+.brand h1 { font-size: 20px; letter-spacing: -0.01em; }
+.brand svg { width: 28px; height: 28px; flex: none; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.field { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; font-size: 13px; }
+.field > span { display: flex; align-items: center; padding: 0 10px; background: var(--surface-2); color: var(--muted);
+  border-right: 1px solid var(--line); cursor: default; user-select: none; font-weight: 500; }
+.field select { border: 0; border-radius: 0; background: var(--surface); padding: 6px 8px; cursor: pointer; }
+.field:focus-within { border-color: var(--accent); }
+.field select:focus-visible { outline: none; }
+select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 12px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.engine { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.engine i { width: 8px; height: 8px; border-radius: 50%; background: var(--none); display: inline-block; }
+.engine.ok i { background: var(--good); }
+.engine.err { color: var(--poor); }
+.engine.err i { background: var(--poor); }
+
+/* layout */
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px; grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: "stage side" "tl side"; gap: 12px; padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.stage { grid-area: stage; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#playerWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; overflow-y: auto; }
+.side .card { flex: none; }
+.side .card.alerts { flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; }
+@media (max-width: 920px), (max-height: 560px) {
+  body { overflow: auto; height: auto; }
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "stage" "tl" "side"; }
+  .stage { overflow: visible; }
+  .side { overflow: visible; }
+}
+.tl { grid-area: tl; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.card h2 { font-size: 15px; letter-spacing: .01em; }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+/* drop zone */
+.drop { flex: 1; min-height: 320px; overflow: auto; border: 2px dashed var(--line); border-radius: var(--radius); background: var(--surface);
+  display: grid; place-items: center; text-align: center; padding: 32px 20px; transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--surface-2); }
+.drop h2 { font-size: clamp(22px, 3vw, 30px); letter-spacing: -0.015em; margin-bottom: 8px; }
+.drop p { color: var(--muted); max-width: 52ch; margin: 0 auto 18px; }
+.tips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 26px; text-align: left; max-width: 720px; }
+.tips div { background: var(--surface-2); border-radius: 8px; padding: 12px; font-size: 13px; color: var(--muted); }
+.tips b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+@media (max-width: 640px) { .tips { grid-template-columns: minmax(0, 1fr); } }
+
+/* player */
+.player { position: relative; margin-inline: auto; background: #000; border-radius: var(--radius); overflow: hidden; max-width: 100%; }
+.player video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.player canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.nudge { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--poor); color: #fff;
+  padding: 8px 16px; border-radius: 999px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.35); white-space: nowrap;
+  animation: pop .25s ease-out; }
+@keyframes pop { from { transform: translate(-50%, -8px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .nudge { animation: none; } }
+.below { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.below .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; }
+
+/* now card */
+.status { display: flex; align-items: center; gap: 12px; margin: 6px 0 8px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-family: var(--f-display);
+  font-weight: 700; font-size: 18px; background: var(--surface-2); color: var(--muted); }
+.pill i { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+.pill.l0 { background: var(--good-bg); color: var(--good); }
+.pill.l1 { background: var(--fair-bg); color: var(--fair); }
+.pill.l2 { background: var(--poor-bg); color: var(--poor); }
+.viewchip { font-size: 12px; color: var(--muted); }
+.metrics { display: flex; flex-direction: column; gap: 10px; }
+.metric { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+.metric .lab { font-weight: 500; }
+.metric .lab small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.metric .val { font-family: var(--f-mono); font-size: 18px; font-variant-numeric: tabular-nums; text-align: right; }
+.metric .val.l0 { color: var(--good); } .metric .val.l1 { color: var(--fair); } .metric .val.l2 { color: var(--poor); }
+.meter { grid-column: 1 / -1; position: relative; height: 6px; border-radius: 3px; overflow: hidden;
+  background: linear-gradient(90deg, var(--good-bg) 0 var(--f), var(--fair-bg) var(--f) var(--p), var(--poor-bg) var(--p)); }
+.meter b { position: absolute; top: -2px; width: 4px; height: 10px; border-radius: 2px; background: var(--ink); left: 0; transition: left .12s linear; }
+.upright { margin-top: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+
+/* summary */
+.score { display: flex; align-items: center; gap: 14px; margin: 8px 0 12px; }
+.ring { width: 72px; height: 72px; flex: none; }
+.ring .track { stroke: var(--surface-2); }
+.score .big { font-family: var(--f-display); font-size: 34px; font-weight: 700; line-height: 1; }
+.score .cap { color: var(--muted); font-size: 12px; }
+.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.stack span { display: block; height: 100%; }
+.legend { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.legend b { font-family: var(--f-mono); font-weight: 500; color: var(--ink); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+dl.stats { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; margin: 12px 0 0; font-size: 13px; }
+dl.stats dt { color: var(--muted); }
+dl.stats dd { margin: 0; text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.episodes { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; }
+@media (max-width: 920px), (max-height: 560px) { .episodes { max-height: 260px; } }
+.episodes button { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left;
+  background: var(--surface-2); border: 1px solid transparent; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.episodes button:hover { border-color: var(--poor); }
+.episodes .when { font-family: var(--f-mono); font-size: 13px; }
+.episodes .why { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.episodes .dur { font-family: var(--f-mono); font-size: 12px; color: var(--poor); font-weight: 500; }
+
+/* timeline */
+.tlhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 6px; }
+.tlhead h2 { margin-right: auto; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.keys span { display: inline-flex; align-items: center; gap: 6px; }
+.keys i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.readout { font-size: 12px; color: var(--muted); min-height: 18px; margin-top: 2px; font-family: var(--f-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tl { width: 100%; height: clamp(110px, 17vh, 170px); display: block; cursor: pointer; }
+.progress { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+.progress b { display: block; height: 100%; width: 0; background: var(--accent); }
+
+/* settings dialog */
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 20px; width: min(520px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(10, 15, 20, .45); }
+.thr { display: grid; grid-template-columns: minmax(0, 1fr) 76px 76px; gap: 8px 10px; align-items: center; margin: 14px 0; font-size: 13px; }
+.thr .h { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.thr input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-family: var(--f-mono); }
+.thr .grp { grid-column: 1 / -1; font-weight: 600; margin-top: 6px; }
+.dlgrow { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 13px; }
+.dlgrow input[type=number] { width: 70px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-family: var(--f-mono); }
+.dlgfoot { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 96 96" aria-hidden="true">
+      <rect width="96" height="96" rx="22" fill="var(--accent)"/>
+      <circle cx="67.8" cy="25" r="8" fill="var(--accent-ink)"/>
+      <path d="M24 57 L40 75 L60 39" stroke="var(--accent-ink)" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Desk Posture Check</h1>
+  </div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Source">
+      <button id="modeVideo" aria-pressed="true">Video</button>
+      <button id="modeCam" aria-pressed="false">Webcam</button>
+    </div>
+    <label class="btn primary" for="file" tabindex="0" id="openLbl">Upload video</label>
+    <button class="btn primary" id="camBtn" hidden>Start webcam</button>
+    <input id="file" type="file" accept="video/*" hidden>
+    <label class="field"><span>View</span>
+      <select id="viewSel">
+        <option value="auto">Auto-detect</option>
+        <option value="side">Side view</option>
+        <option value="front">Front view</option>
+      </select></label>
+    <label class="field"><span>Model</span>
+      <select id="modelSel">
+        <option value="lite">Lite (fastest)</option>
+        <option value="full" selected>Full</option>
+        <option value="heavy">Heavy (most accurate)</option>
+      </select></label>
+    <button class="btn" id="settingsBtn">Thresholds</button>
+    <span class="engine" id="engine"><i></i><span id="engineTxt">Loading pose model…</span></span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage" id="stage">
+    <div class="drop" id="drop">
+      <div>
+        <h2>Drop a video of yourself at your desk</h2>
+        <p>Posture is analysed live while the video plays, right here in your browser. Your video stays on your device and is never sent to a server.</p>
+        <label class="btn primary" for="file">Upload video</label>
+        <div class="tips">
+          <div><b>Side view is best</b>Camera at desk height, 1–2 m to your side, with ear, shoulder and hip in frame.</div>
+          <div><b>Front view works too</b>A laptop webcam angle. It tracks head drop and tilt relative to your most upright moment.</div>
+          <div><b>Just press play</b>Posture is scored frame by frame as the video plays. Scrub or skip and it picks up from there.</div>
+        </div>
+      </div>
+    </div>
+    <div class="drop" id="camEmpty" hidden>
+      <div>
+        <h2>Check your posture live while you work</h2>
+        <p id="camLead">Keep this tab open and get on with your day. You'll get a reminder when you slouch, even when the tab is in the background.</p>
+        <button class="btn primary" id="camStart2">Start webcam</button>
+        <div class="tips">
+          <div><b>Laptop camera works</b>Sit up straight for the first few seconds so it learns your upright pose.</div>
+          <div><b>A side camera is more accurate</b>A phone or external camera beside you. Pick it from the camera list once started.</div>
+          <div><b>Private</b>The feed is analysed on your device. Nothing is recorded, saved or uploaded.</div>
+        </div>
+      </div>
+    </div>
+    <div id="playerWrap" hidden>
+      <div class="player" id="player">
+        <video id="video" controls playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="nudge" id="nudge" hidden></div>
+      </div>
+      <div class="below"><span class="name" id="fileName"></span>
+        <label class="field" id="camDevWrap" hidden><span>Camera</span><select id="camDev"></select></label>
+        <span id="coverage"></span></div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card" aria-live="polite">
+      <div class="eyebrow">Right now</div>
+      <div class="status"><span class="pill" id="pill"><i></i><span id="pillTxt">Waiting for video</span></span></div>
+      <div class="viewchip" id="viewChip">Camera angle not detected yet</div>
+      <div class="metrics" id="metrics" style="margin-top:10px"></div>
+      <div class="upright" id="uprightRow" hidden>
+        <button class="btn" id="uprightBtn">Use this frame as upright</button>
+        <span id="baselineNote"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Session report</div>
+      <div id="reportEmpty" class="empty">Play the video to build a report.</div>
+      <div id="report" hidden>
+        <div class="score">
+          <svg class="ring" viewBox="0 0 84 84" aria-hidden="true">
+            <circle class="track" cx="42" cy="42" r="35" fill="none" stroke-width="9"/>
+            <circle id="ringArc" cx="42" cy="42" r="35" fill="none" stroke-width="9" stroke-linecap="round"
+              transform="rotate(-90 42 42)" stroke-dasharray="0 220" stroke="var(--good)"/>
+          </svg>
+          <div><div class="big num" id="scoreNum">–</div><div class="cap">posture score out of 100<br>good time counts fully, fair counts half</div></div>
+        </div>
+        <div class="stack" id="stack"></div>
+        <div class="legend" id="legend"></div>
+        <dl class="stats" id="stats"></dl>
+      </div>
+    </section>
+
+    <section class="card alerts">
+      <h2>Slouch alerts</h2>
+      <p class="note" id="alertsNote">Stretches of poor posture lasting 5 s or longer. Click one to jump there.</p>
+      <ul class="episodes" id="episodes"></ul>
+    </section>
+  </aside>
+
+  <section class="card tl">
+    <div class="tlhead">
+      <h2>Timeline</h2>
+      <div class="keys" id="keys"></div>
+      <button class="btn" id="csvBtn" disabled>Export CSV</button>
+    </div>
+        <canvas id="tl"></canvas>
+    <div class="readout" id="readout">Hover the timeline to read values. Click to jump.</div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <h2>Thresholds</h2>
+  <p class="note">A metric above the first number is fair, above the second is poor. Leaning back never counts against you. Changes re-score everything analysed so far.</p>
+  <div class="thr" id="thr"></div>
+  <div class="dlgrow">
+    <label>Video: alert after <input id="nudgeSec" type="number" min="1" max="600" step="1"> s</label>
+    <label>Webcam: remind after <input id="camNudgeSec" type="number" min="5" max="3600" step="5"> s</label>
+  </div>
+  <div class="dlgrow" style="margin-top:12px">
+    <label><input id="soundChk" type="checkbox"> Beep on alert</label>
+    <label><input id="notifyChk" type="checkbox"> Desktop notifications in webcam mode</label>
+  </div>
+  <p class="note">In webcam mode a reminder repeats every couple of minutes while you stay slouched.</p>
+  <div class="dlgfoot">
+    <button class="btn" id="resetBtn">Reset to defaults</button>
+    <button class="btn primary" id="closeSettings">Done</button>
+  </div>
+</dialog>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const MP_VER = '0.10.14';
+const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URL = k => `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${k}/float16/1/pose_landmarker_${k}.task`;
+
+const video = $('video'), overlay = $('overlay'), octx = overlay.getContext('2d');
+const tl = $('tl'), tctx = tl.getContext('2d');
+
+// ------------------------------------------------------------------ metrics
+const META = {
+  neck:     { label: 'Head forward',  unit: '°', hint: 'Ear ahead of shoulder, from vertical' },
+  back:     { label: 'Back lean',     unit: '°', hint: 'Shoulder ahead of hip, from vertical' },
+  drop:     { label: 'Head drop',     unit: '%', hint: 'Neck shortening vs. upright pose' },
+  shoulder: { label: 'Shoulder tilt', unit: '°', hint: 'One shoulder higher than the other' },
+  tilt:     { label: 'Head tilt',     unit: '°', hint: 'Head leaning toward a shoulder' },
+};
+const VIEW_KEYS = { side: ['neck', 'back'], front: ['drop', 'shoulder', 'tilt'] };
+const SERIES = ['--s1', '--s2', '--s3'];
+const DEFAULTS = { neck: [25, 40], back: [10, 20], drop: [12, 22], shoulder: [4, 8], tilt: [6, 12], nudge: 5, camNudge: 30, notify: true, sound: false };
+const LEVEL_TXT = ['Good posture', 'Fair', 'Slouching'];
+
+let cfg = structuredClone(DEFAULTS);
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('posture-cfg') || '{}')); } catch {}
+const saveCfg = () => { try { localStorage.setItem('posture-cfg', JSON.stringify(cfg)); } catch {} };
+
+// ------------------------------------------------------------------ state
+const S = {
+  landmarker: null, delegate: '', busy: false, scanning: false, lastTs: 0,
+  samples: new Map(), sortedCache: null, baseCache: undefined,
+  votes: [], autoView: null, facing: 1, uprightManual: null,
+  ema: {}, lastT: null, runStart: null, prevPoorT: null, nudged: false,
+  lastPose: null, fps: [], dirty: true, duration: 0,
+  mode: 'video', stream: null, live: false, sessionStartMs: null, lastLive: 0, lastNudgeT: null,
+};
+const BASE_TITLE = document.title;
+const isCam = () => S.mode === 'webcam';
+const GAP = () => isCam() ? 2.5 : 0.7;          // max gap between samples that still counts as continuous
+const WCAP = () => isCam() ? 2.5 : 0.5;         // max time one sample stands for
+const effView = () => $('viewSel').value === 'auto' ? (S.autoView || 'side') : $('viewSel').value;
+
+function sorted() {
+  if (!S.sortedCache) S.sortedCache = [...S.samples.values()].sort((a, b) => a.t - b.t);
+  return S.sortedCache;
+}
+function baseline() {
+  if (S.uprightManual) return S.uprightManual;
+  if (S.baseCache !== undefined) return S.baseCache;
+  const r = sorted().map(s => s.ratio).filter(v => v != null).sort((a, b) => a - b);
+  S.baseCache = r.length >= 15 ? r[Math.floor(r.length * 0.9)] : null;   // most upright 10% of the video
+  return S.baseCache;
+}
+const dropOf = r => { const b = baseline(); return r == null || !b ? null : Math.max(0, (1 - r / b) * 100); };
+function values(s) {
+  const out = {};
+  if (s.none) return out;
+  for (const k of VIEW_KEYS[effView()]) out[k] = k === 'drop' ? dropOf(s.ratio) : s[k];
+  return out;
+}
+function levelOf(k, v) { if (v == null || !isFinite(v)) return -1; const [f, p] = cfg[k]; return v > p ? 2 : v > f ? 1 : 0; }
+function sevOf(k, v) {               // piecewise scale: 0–1 good, 1–2 fair, 2–3 poor
+  if (v == null || !isFinite(v)) return null;
+  const [f, p] = cfg[k], x = Math.max(0, v);
+  if (x <= f) return x / f;
+  if (x <= p) return 1 + (x - f) / (p - f);
+  return Math.min(3, 2 + (x - p) / (p - f));
+}
+function levelOfSample(s) {
+  let L = -1, worst = null, ws = -1;
+  const vals = values(s);
+  for (const k in vals) {
+    const l = levelOf(k, vals[k]);
+    if (l > L) L = l;
+    const sv = sevOf(k, vals[k]);
+    if (sv != null && sv > ws) { ws = sv; worst = k; }
+  }
+  return { L, worst, vals };
+}
+
+// ------------------------------------------------------------------ model
+const engine = (txt, cls = '') => { $('engineTxt').textContent = txt; $('engine').className = 'engine ' + cls; };
+let vision = null, fileset = null;
+async function loadModel(key) {
+  engine('Loading pose model…');
+  try {
+    vision ??= await import(`${MP_URL}/vision_bundle.mjs`);
+    fileset ??= await vision.FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
+    const opts = delegate => ({
+      baseOptions: { modelAssetPath: MODEL_URL(key), delegate }, runningMode: 'VIDEO', numPoses: 1,
+      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+    });
+    let lm, delegate = 'GPU';
+    try { lm = await vision.PoseLandmarker.createFromOptions(fileset, opts('GPU')); }
+    catch { delegate = 'CPU'; lm = await vision.PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+    S.landmarker?.close();
+    S.landmarker = lm; S.delegate = delegate;
+    engine(`Model ready · ${delegate}`, 'ok');
+    if (!isCam() && video.readyState >= 2) analyze(video.currentTime);
+  } catch (e) {
+    console.error(e);
+    engine('Pose model failed to load. Check your internet connection and reload.', 'err');
+  }
+}
+const nextTs = () => (S.lastTs = Math.max(S.lastTs + 1, Math.round(performance.now())));
+
+// ------------------------------------------------------------------ analysis
+const deg = r => r * 180 / Math.PI;
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, v: Math.min(a.v, b.v) });
+const median = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+
+function analyze(t) {
+  if (!S.landmarker || S.busy || video.readyState < 2) return;
+  S.busy = true;
+  let res;
+  try { res = S.landmarker.detectForVideo(video, nextTs()); }
+  catch (e) { console.error(e); S.busy = false; return; }
+  S.busy = false;
+  const now = performance.now();
+  S.fps.push(now); while (S.fps.length && now - S.fps[0] > 1000) S.fps.shift();
+
+  const lm = res.landmarks && res.landmarks[0];
+  if (!lm) {
+    record({ t, none: true });
+    S.lastPose = null; S.ema = {}; S.lastT = null;
+    afterSample({ t, none: true });
+    return;
+  }
+  const W = video.videoWidth, H = video.videoHeight;
+  const P = lm.map(l => ({ x: l.x * W, y: l.y * H, v: l.visibility ?? 1, ny: l.y }));
+  const Lf = { ear: P[7], sh: P[11], hip: P[23] }, Rt = { ear: P[8], sh: P[12], hip: P[24] }, nose = P[0];
+
+  // side view: use whichever side faces the camera
+  const side = (Lf.ear.v + Lf.sh.v + Lf.hip.v) >= (Rt.ear.v + Rt.sh.v + Rt.hip.v) ? Lf : Rt;
+  const dx = nose.x - side.ear.x;
+  if (Math.abs(dx) > 0.015 * W) S.facing = Math.sign(dx);
+  const f = S.facing;
+  const neck = side.ear.v > 0.4 && side.sh.v > 0.4
+    ? deg(Math.atan2(f * (side.ear.x - side.sh.x), side.sh.y - side.ear.y)) : null;
+  const back = side.sh.v > 0.4 && side.hip.v > 0.5 && side.hip.ny < 1.0
+    ? deg(Math.atan2(f * (side.sh.x - side.hip.x), side.hip.y - side.sh.y)) : null;
+
+  // front view
+  const shOK = Lf.sh.v > 0.5 && Rt.sh.v > 0.5, earOK = Lf.ear.v > 0.5 && Rt.ear.v > 0.5;
+  const shMid = mid(Lf.sh, Rt.sh), earMid = mid(Lf.ear, Rt.ear);
+  const shW = Math.hypot(Rt.sh.x - Lf.sh.x, Rt.sh.y - Lf.sh.y);
+  const ratio = shOK && earOK && shW > 1 ? (shMid.y - earMid.y) / shW : null;
+  const shoulder = shOK ? Math.abs(deg(Math.atan2(Rt.sh.y - Lf.sh.y, Math.abs(Rt.sh.x - Lf.sh.x)))) : null;
+  const tilt = earOK ? Math.abs(deg(Math.atan2(Rt.ear.y - Lf.ear.y, Math.abs(Rt.ear.x - Lf.ear.x)))) : null;
+
+  // camera angle vote: wide shoulders relative to neck height means we're looking from the front
+  const neckLen = Math.hypot(earMid.x - shMid.x, earMid.y - shMid.y);
+  if (neckLen > 1 && S.votes.length < 40) {
+    S.votes.push(shW / neckLen);
+    if (S.votes.length >= 8) {
+      const v = median(S.votes) > 1.1 ? 'front' : 'side';
+      if (v !== S.autoView) { S.autoView = v; S.dirty = true; }
+    }
+  }
+
+  // time-aware smoothing; reset after a seek
+  const dt = S.lastT == null ? Infinity : t - S.lastT;
+  if (!(dt > 0 && dt < GAP())) S.ema = {};
+  const a = isFinite(dt) && dt > 0 ? 1 - Math.exp(-dt / 0.25) : 1;
+  const sm = (k, v) => {
+    if (v == null || !isFinite(v)) { delete S.ema[k]; return null; }
+    S.ema[k] = k in S.ema ? S.ema[k] + a * (v - S.ema[k]) : v;
+    return S.ema[k];
+  };
+  S.lastT = t;
+  const s = { t, neck: sm('neck', neck), back: sm('back', back), ratio: sm('ratio', ratio),
+              shoulder: sm('shoulder', shoulder), tilt: sm('tilt', tilt) };
+  record(s);
+  S.lastPose = { P, side, s };
+  afterSample(s);
+}
+
+function record(s) {
+  S.samples.set(Math.round(s.t * 10), s);
+  if (isCam()) S.duration = Math.max(S.duration, s.t);
+  S.sortedCache = null; S.baseCache = undefined; S.dirty = true;
+}
+
+function afterSample(s) {
+  const info = s.none ? { L: -1, vals: {} } : levelOfSample(s);
+  renderNow(s, info);
+  drawOverlay(info);
+  if (!S.scanning) checkNudge(s, info); else hideNudge();
+}
+
+// ------------------------------------------------------------------ nudges
+let audio = null;
+function beep() {
+  if (!cfg.sound) return;
+  try {
+    audio ??= new AudioContext();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = 660; g.gain.setValueAtTime(0.0001, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, audio.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.35);
+    o.connect(g).connect(audio.destination); o.start(); o.stop(audio.currentTime + 0.4);
+  } catch {}
+}
+function checkNudge(s, info) {
+  const delay = isCam() ? cfg.camNudge : cfg.nudge;
+  if (info.L === 2) {
+    if (S.runStart == null || S.prevPoorT == null || s.t < S.prevPoorT || s.t - S.prevPoorT > GAP()) {
+      S.runStart = s.t; S.nudged = false; S.lastNudgeT = null;
+    }
+    S.prevPoorT = s.t;
+    const len = s.t - S.runStart;
+    if (len >= delay) {
+      const text = `${META[info.worst]?.label.toLowerCase() || 'poor posture'} for ${fmtDur(len)}`;
+      $('nudge').textContent = `Sit up · ${text}`;
+      $('nudge').hidden = false;
+      const again = isCam() && S.lastNudgeT != null && s.t - S.lastNudgeT >= Math.max(120, delay * 2);
+      if (!S.nudged || again) {
+        S.nudged = true; S.lastNudgeT = s.t; beep();
+        if (isCam() && document.hidden) notify(`You've been slouching: ${text}.`);
+      }
+      if (isCam() && document.hidden) document.title = 'Sit up! · ' + BASE_TITLE;
+    }
+  } else { S.runStart = S.prevPoorT = null; hideNudge(); restoreTitle(); }
+}
+const restoreTitle = () => { if (document.title !== BASE_TITLE) document.title = BASE_TITLE; };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) restoreTitle(); });
+function notify(body) {
+  if (!cfg.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('Sit up', { body, tag: 'desk-posture-check', renotify: true });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch {}
+}
+async function askNotify() {
+  if (!cfg.notify || !('Notification' in window) || Notification.permission !== 'default') return;
+  try { await Notification.requestPermission(); } catch {}
+}
+const hideNudge = () => { $('nudge').hidden = true; };
+
+// ------------------------------------------------------------------ colors
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['--ink', '--muted', '--line', '--surface', '--surface-2', '--good', '--fair', '--poor', '--none',
+                   '--good-bg', '--fair-bg', '--poor-bg', '--s1', '--s2', '--s3', '--accent'])
+    C[k.slice(2)] = cs.getPropertyValue(k).trim();
+  S.dirty = true;
+}
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+const LV = L => [C.good, C.fair, C.poor][L] || C.none;
+// overlay draws over video, so it uses fixed bright colours that read on any footage
+const OV = ['#34d399', '#fbbf24', '#ff5c4d'];
+
+// ------------------------------------------------------------------ overlay
+function sizePlayer() {
+  if (!video.videoWidth) return;
+  const stage = $('stage'), w = stage.clientWidth;
+  const stacked = getComputedStyle(document.body).overflowY === 'auto';
+  const below = document.querySelector('.below').offsetHeight + 8;
+  const maxH = stacked ? Math.max(240, innerHeight * 0.6) : Math.max(160, stage.clientHeight - below);
+  const ar = video.videoWidth / video.videoHeight;
+  let pw = w, ph = w / ar;
+  if (ph > maxH) { ph = maxH; pw = ph * ar; }
+  const pl = $('player');
+  pl.style.width = pw + 'px'; pl.style.height = ph + 'px';
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  overlay.width = Math.round(pw * dpr); overlay.height = Math.round(ph * dpr);
+  if (S.lastPose) drawOverlay(levelOfSample(S.lastPose.s)); else drawOverlay(null);
+}
+
+const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28], [7, 0], [8, 0]];
+function drawOverlay(info) {
+  const ctx = octx, W = overlay.width, H = overlay.height;
+  ctx.clearRect(0, 0, W, H);
+  if (!S.lastPose || !info || info.L === undefined) return;
+  const k = W / video.videoWidth, { P, side } = S.lastPose;
+  const X = p => p.x * k, Y = p => p.y * k, u = W / 900;   // u: line-width unit relative to display size
+  ctx.lineCap = 'round';
+
+  // faint full skeleton
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = Math.max(1.5, 2.5 * u);
+  for (const [a, b] of BONES) {
+    if (P[a].v < 0.5 || P[b].v < 0.5) continue;
+    ctx.beginPath(); ctx.moveTo(X(P[a]), Y(P[a])); ctx.lineTo(X(P[b]), Y(P[b])); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  for (const i of [0, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24]) {
+    if (P[i].v < 0.5) continue;
+    ctx.beginPath(); ctx.arc(X(P[i]), Y(P[i]), Math.max(2, 3.5 * u), 0, Math.PI * 2); ctx.fill();
+  }
+
+  const vals = info.vals || {};
+  const seg = (a, b, L, ref) => {
+    const col = OV[L] || 'rgba(255,255,255,.8)';
+    if (ref) {                         // dashed vertical reference + angle arc
+      const len = Math.hypot(b.x - a.x, b.y - a.y) * k;
+      ctx.setLineDash([6 * u + 2, 6 * u + 2]); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1.5, 2 * u);
+      ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(a), Y(a) - len); ctx.stroke(); ctx.setLineDash([]);
+      const a0 = -Math.PI / 2, a1 = Math.atan2(Y(b) - Y(a), X(b) - X(a));
+      let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, 3 * u);
+      ctx.beginPath(); ctx.arc(X(a), Y(a), len * 0.35, a0, a0 + d, d < 0); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = Math.max(5, 9 * u);
+    ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(3, 6 * u);
+    ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke();
+  };
+  const tag = (x, y, text, L) => {
+    const fs = Math.max(12, 15 * u);
+    ctx.font = `600 ${fs}px "IBM Plex Sans", system-ui, sans-serif`;
+    const w = ctx.measureText(text).width + fs * 1.1, h = fs * 1.7;
+    x = Math.min(Math.max(x, 4), W - w - 4); y = Math.min(Math.max(y, 4), H - h - 4);
+    ctx.fillStyle = OV[L] || 'rgba(30,30,30,.8)';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, h / 2) : ctx.rect(x, y, w, h); ctx.fill();
+    ctx.fillStyle = '#0b0f14'; ctx.textBaseline = 'middle'; ctx.fillText(text, x + fs * 0.55, y + h / 2 + 1);
+  };
+  const fmtV = (key, v) => `${META[key].label} ${Math.round(v)}${META[key].unit}`;
+
+  if (effView() === 'side') {
+    if (vals.back != null) {
+      seg(side.hip, side.sh, levelOf('back', vals.back), true);
+      tag(X(side.hip) + 14 * u, Y(side.hip) - 34 * u, fmtV('back', vals.back), levelOf('back', vals.back));
+    }
+    if (vals.neck != null) {
+      seg(side.sh, side.ear, levelOf('neck', vals.neck), true);
+      tag(X(side.ear) + 18 * u, Y(side.ear) - 40 * u, fmtV('neck', vals.neck), levelOf('neck', vals.neck));
+    }
+  } else {
+    const ls = P[11], rs = P[12], le = P[7], re = P[8];
+    if (vals.shoulder != null) {
+      seg(rs, ls, levelOf('shoulder', vals.shoulder));
+      tag(Math.max(X(ls), X(rs)) + 12 * u, (Y(ls) + Y(rs)) / 2 - 12 * u, fmtV('shoulder', vals.shoulder), levelOf('shoulder', vals.shoulder));
+    }
+    if (vals.tilt != null) {
+      seg(re, le, levelOf('tilt', vals.tilt));
+      tag(Math.max(X(le), X(re)) + 12 * u, (Y(le) + Y(re)) / 2 - 20 * u, fmtV('tilt', vals.tilt), levelOf('tilt', vals.tilt));
+    }
+    const sm = mid(ls, rs), em = mid(le, re);
+    if (vals.drop != null) {
+      seg(sm, em, levelOf('drop', vals.drop));
+      tag(Math.min(X(ls), X(rs)) - 150 * u, (Y(sm) + Y(em)) / 2 - 10 * u, fmtV('drop', vals.drop), levelOf('drop', vals.drop));
+    }
+  }
+}
+
+// ------------------------------------------------------------------ "right now" card
+const fmtT = s => {
+  s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = Math.floor(s % 60);
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`;
+};
+const clock = t => new Date(S.sessionStartMs + t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const fmtWhen = t => isCam() && S.sessionStartMs ? clock(t) : fmtT(t);
+const fmtDur = s => s < 60 ? `${Math.round(s)} s` : s < 3600 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
+
+function buildMetricRows() {
+  const view = effView(), box = $('metrics');
+  box.innerHTML = '';
+  for (const k of VIEW_KEYS[view]) {
+    const [f, p] = cfg[k], max = p * 1.6;
+    const el = document.createElement('div');
+    el.className = 'metric';
+    el.innerHTML = `<div class="lab">${META[k].label}<small>${META[k].hint}</small></div>
+      <div class="val" id="v-${k}">–</div>
+      <div class="meter" style="--f:${(f / max * 100).toFixed(1)}%;--p:${(p / max * 100).toFixed(1)}%"><b id="m-${k}"></b></div>`;
+    el.dataset.max = max;
+    box.appendChild(el);
+  }
+  $('uprightRow').hidden = view !== 'front';
+  updateViewChip();
+}
+function updateViewChip() {
+  const v = effView(), auto = $('viewSel').value === 'auto';
+  let t = v === 'side' ? `Side view · facing ${S.facing > 0 ? 'right' : 'left'}` : 'Front view';
+  if (auto) t += S.autoView ? ' (auto-detected)' : ' (detecting…)';
+  $('viewChip').textContent = t;
+  const b = S.uprightManual ? 'Upright pose set manually.' : baseline() ? 'Upright pose taken from your most upright moments.' : 'Upright pose not known yet.';
+  $('baselineNote').textContent = b;
+}
+function renderNow(s, info) {
+  const pill = $('pill');
+  pill.className = 'pill' + (info.L >= 0 ? ' l' + info.L : '');
+  $('pillTxt').textContent = s.none ? 'No person found' : info.L < 0 ? 'Not enough of you in view' : LEVEL_TXT[info.L];
+  for (const k of VIEW_KEYS[effView()]) {
+    const el = $('v-' + k), m = $('m-' + k);
+    if (!el) { buildMetricRows(); return renderNow(s, info); }
+    const v = info.vals[k];
+    if (v == null) { el.textContent = '–'; el.className = 'val'; m.style.left = '0'; continue; }
+    el.textContent = `${Math.round(v)}${META[k].unit}`;
+    el.className = 'val l' + levelOf(k, v);
+    const max = +el.parentElement.dataset.max;
+    m.style.left = `calc(${Math.min(100, Math.max(0, v / max * 100))}% - 2px)`;
+  }
+  updateViewChip();
+}
+
+// ------------------------------------------------------------------ summary
+function summarize() {
+  const arr = sorted(), view = effView(), main = VIEW_KEYS[view][0];
+  let tot = 0; const time = [0, 0, 0], mains = [], runs = [];
+  let run = null;
+  const close = () => { if (run) runs.push(run); run = null; };
+  for (let i = 0; i < arr.length; i++) {
+    const s = arr[i], n = arr[i + 1];
+    const w = n ? Math.min(n.t - s.t, WCAP()) : 0.1;
+    const info = s.none ? { L: -1 } : levelOfSample(s);
+    if (info.L < 0) { close(); continue; }
+    tot += w; time[info.L] += w;
+    if (info.vals[main] != null) mains.push(info.vals[main]);
+    if (info.L === 2) {
+      const sev = sevOf(info.worst, info.vals[info.worst]);
+      if (run && s.t - run.last <= GAP()) { run.end = s.t + w; run.last = s.t; if (sev > run.sev) Object.assign(run, { sev, key: info.worst, val: info.vals[info.worst] }); }
+      else { close(); run = { start: s.t, end: s.t + w, last: s.t, sev, key: info.worst, val: info.vals[info.worst] }; }
+    } else close();
+  }
+  close();
+  const episodes = runs.filter(r => r.end - r.start >= (isCam() ? cfg.camNudge : cfg.nudge));
+  const longest = runs.reduce((m, r) => Math.max(m, r.end - r.start), 0);
+  return { tot, time, episodes, longest, main, typical: mains.length ? median(mains) : null };
+}
+
+function renderReport() {
+  const R = summarize();
+  $('coverage').textContent = isCam()
+    ? (S.sessionStartMs ? `Session ${fmtT(S.duration)} · analysed ${fmtT(R.tot)}` : '')
+    : S.duration ? `Analysed ${fmtT(R.tot)} of ${fmtT(S.duration)}` : '';
+  $('csvBtn').disabled = !S.samples.size;
+  if (!R.tot) { $('report').hidden = true; $('reportEmpty').hidden = false; }
+  else {
+    $('report').hidden = false; $('reportEmpty').hidden = true;
+    const score = Math.round((R.time[0] + 0.5 * R.time[1]) / R.tot * 100);
+    $('scoreNum').textContent = score;
+    const arc = $('ringArc'), circ = 2 * Math.PI * 35;
+    arc.setAttribute('stroke-dasharray', `${(score / 100) * circ} ${circ}`);
+    arc.setAttribute('stroke', score >= 80 ? 'var(--good)' : score >= 60 ? 'var(--fair)' : 'var(--poor)');
+    const pct = R.time.map(x => x / R.tot * 100);
+    $('stack').innerHTML = pct.map((p, i) => `<span style="width:${p}%;background:var(${['--good', '--fair', '--poor'][i]})"></span>`).join('');
+    $('legend').innerHTML = ['Good', 'Fair', 'Poor'].map((n, i) =>
+      `<span><i style="background:var(${['--good', '--fair', '--poor'][i]})"></i>${n} <b>${Math.round(pct[i])}%</b></span>`).join('');
+    const m = META[R.main];
+    $('stats').innerHTML = `
+      <dt>Time analysed</dt><dd>${fmtT(R.tot)}</dd>
+      <dt>Time in poor posture</dt><dd>${fmtT(R.time[2])}</dd>
+      <dt>Longest poor stretch</dt><dd>${fmtDur(R.longest)}</dd>
+      <dt>Slouch alerts</dt><dd>${R.episodes.length}</dd>
+      <dt>Typical ${m.label.toLowerCase()}</dt><dd>${R.typical == null ? '–' : Math.round(R.typical) + m.unit}</dd>`;
+  }
+  $('alertsNote').textContent = isCam()
+    ? `Times you slouched for ${fmtDur(cfg.camNudge)} or longer this session.`
+    : `Stretches of poor posture lasting ${cfg.nudge} s or longer. Click one to jump there.`;
+  const ul = $('episodes');
+  ul.innerHTML = R.episodes.length ? '' : `<li class="empty">${R.tot ? 'None so far.' : 'Nothing analysed yet.'}</li>`;
+  for (const e of R.episodes) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.innerHTML = `<span class="when">${fmtWhen(e.start)}</span><span class="why">${META[e.key].label} up to ${Math.round(e.val)}${META[e.key].unit}</span><span class="dur">${fmtDur(e.end - e.start)}</span>`;
+    if (isCam()) b.style.cursor = 'default'; else b.onclick = () => { video.currentTime = e.start; };
+    li.appendChild(b); ul.appendChild(li);
+  }
+}
+
+// ------------------------------------------------------------------ timeline
+const TL = { padL: 52, padR: 14, top: 8, plotH: 100, gap: 6, strip: 10 };
+function sizeTimeline() {
+  const dpr = Math.min(devicePixelRatio || 1, 2), w = tl.clientWidth, h = tl.clientHeight;
+  tl.width = Math.round(w * dpr); tl.height = Math.round(h * dpr);
+  tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  S.dirty = true;
+}
+function drawTimeline() {
+  const ctx = tctx, w = tl.clientWidth, h = tl.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+  TL.plotH = Math.max(50, h - TL.top - TL.gap - TL.strip - 22);
+  const { padL, padR, top, plotH, gap, strip } = TL, pw = w - padL - padR;
+  const dur = S.duration || 1;
+  const xOf = t => padL + (t / dur) * pw, yOf = sv => top + plotH * (1 - sv / 3);
+  ctx.font = '11px "IBM Plex Sans", system-ui, sans-serif'; ctx.textBaseline = 'middle';
+
+  // severity bands
+  [[C['good-bg'], 0], [C['fair-bg'], 1], [C['poor-bg'], 2]].forEach(([c, i]) => {
+    ctx.fillStyle = c; ctx.fillRect(padL, yOf(i + 1), pw, plotH / 3);
+  });
+  ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+  ['Good', 'Fair', 'Poor'].forEach((n, i) => ctx.fillText(n, padL - 8, yOf(i + 0.5)));
+
+  // x ticks
+  const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600];
+  const step = steps.find(s => dur / s <= Math.max(2, pw / 70)) || 3600;
+  ctx.textAlign = 'center'; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+  const yAxis = top + plotH + gap + strip + 12;
+  for (let t = 0; t <= dur + 1e-6; t += step) {
+    const x = Math.round(xOf(t)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + plotH); ctx.globalAlpha = .6; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.muted; ctx.fillText(fmtT(t), Math.min(Math.max(x, padL + 12), w - padR - 12), yAxis);
+  }
+
+  const arr = sorted();
+  const keys = VIEW_KEYS[effView()];
+  // status strip
+  const sy = top + plotH + gap;
+  ctx.fillStyle = C['surface-2']; ctx.fillRect(padL, sy, pw, strip);
+  for (let i = 0; i < arr.length; i++) {
+    const s = arr[i], n = arr[i + 1];
+    const info = s.none ? { L: -1 } : levelOfSample(s);
+    if (info.L < 0) continue;
+    const t1 = n ? Math.min(n.t, s.t + WCAP()) : s.t + 0.1;
+    ctx.fillStyle = LV(info.L);
+    ctx.fillRect(xOf(s.t), sy, Math.max(1, xOf(t1) - xOf(s.t) + 0.5), strip);
+  }
+  // metric lines
+  keys.forEach((k, ki) => {
+    ctx.strokeStyle = C[SERIES[ki].slice(2)]; ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+    ctx.beginPath(); let pen = false, lastT = -1;
+    for (const s of arr) {
+      const v = s.none ? null : (k === 'drop' ? dropOf(s.ratio) : s[k]);
+      const sv = sevOf(k, v);
+      if (sv == null || s.t - lastT > GAP()) pen = false;
+      if (sv != null) { const x = xOf(s.t), y = yOf(sv); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; lastT = s.t; }
+    }
+    ctx.stroke();
+  });
+  // playhead
+  if (!isCam() && video.getAttribute('src') && S.duration) {
+    const x = Math.round(xOf(video.currentTime)) + 0.5;
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, top - 4); ctx.lineTo(x, sy + strip + 2); ctx.stroke();
+  }
+  if (!arr.length) {
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+    ctx.fillText(isCam() ? (S.live ? 'Waiting for the first readings…' : 'Start the webcam to fill the timeline') : video.getAttribute('src') ? 'Press play to fill the timeline' : 'No video loaded', padL + pw / 2, top + plotH / 2);
+  }
+  $('keys').innerHTML = keys.map((k, i) => `<span><i style="background:var(${SERIES[i]})"></i>${META[k].label}</span>`).join('')
+    + `<span><i style="background:linear-gradient(90deg,var(--good) 33%,var(--fair) 33% 66%,var(--poor) 66%);height:8px"></i>Overall</span>`;
+}
+function tlTime(e) {
+  const r = tl.getBoundingClientRect(), pw = r.width - TL.padL - TL.padR;
+  return Math.min(1, Math.max(0, (e.clientX - r.left - TL.padL) / pw)) * (S.duration || 0);
+}
+tl.addEventListener('click', e => { if (!S.duration || isCam()) return; video.currentTime = tlTime(e); });
+tl.addEventListener('mousemove', e => {
+  if (!S.duration) return;
+  const t = tlTime(e), arr = sorted();
+  let best = null, bd = 1;
+  for (const s of arr) { const d = Math.abs(s.t - t); if (d < bd) { bd = d; best = s; } }
+  if (!best || best.none) { $('readout').textContent = `${fmtWhen(t)} · ${best ? 'no person' : 'not analysed'}`; return; }
+  const info = levelOfSample(best);
+  const parts = Object.entries(info.vals).map(([k, v]) => `${META[k].label} ${v == null ? '–' : Math.round(v) + META[k].unit}`);
+  $('readout').textContent = `${fmtWhen(best.t)} · ${info.L >= 0 ? LEVEL_TXT[info.L] : '–'} · ${parts.join(' · ')}`;
+});
+const READOUT = () => isCam() ? 'Hover the timeline to read values.' : 'Hover the timeline to read values. Click to jump.';
+tl.addEventListener('mouseleave', () => { $('readout').textContent = READOUT(); });
+
+
+// ------------------------------------------------------------------ video + live loop
+function analyzeLive() {
+  if (!S.live) return;
+  const now = performance.now();
+  if (now - S.lastLive < 66) return;            // about 15 checks a second is plenty for posture
+  S.lastLive = now;
+  analyze((Date.now() - S.sessionStartMs) / 1000);
+}
+// Background tabs pause animation frames, so a worker timer keeps checking about once a second.
+const ticker = new Worker(URL.createObjectURL(new Blob(
+  ['let id=null;onmessage=e=>{clearInterval(id);if(e.data>0)id=setInterval(()=>postMessage(0),e.data)}'], { type: 'text/javascript' })));
+ticker.onmessage = () => { if (S.live && document.hidden) analyzeLive(); };
+function onFrame() {
+  if (!video.paused) isCam() ? analyzeLive() : analyze(video.currentTime);
+  video.requestVideoFrameCallback(onFrame);
+}
+if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) video.requestVideoFrameCallback(onFrame);
+else {
+  let lastCT = -1;
+  (function poll() {
+    if (isCam()) analyzeLive();
+    else if (video.currentTime !== lastCT && video.readyState >= 2) { lastCT = video.currentTime; analyze(lastCT); }
+    requestAnimationFrame(poll);
+  })();
+}
+video.addEventListener('seeked', () => { if (!isCam()) analyze(video.currentTime); });
+video.addEventListener('play', () => { try { audio?.resume(); } catch {} });
+video.addEventListener('loadedmetadata', () => {
+  if (!isCam()) S.duration = isFinite(video.duration) ? video.duration : 0;
+  sizePlayer(); S.dirty = true;
+});
+video.addEventListener('loadeddata', () => { if (!isCam()) analyze(video.currentTime); });
+video.addEventListener('error', () => {
+  if (isCam() || !video.getAttribute('src')) return;
+  $('fileName').textContent = "This browser can't play that video. Try an MP4 (H.264) or WebM file.";
+});
+
+function resetSession() {
+  Object.assign(S, { samples: new Map(), sortedCache: null, baseCache: undefined, votes: [], autoView: null,
+    uprightManual: null, ema: {}, lastT: null, runStart: null, prevPoorT: null, nudged: false, lastNudgeT: null,
+    lastPose: null, dirty: true, duration: 0, sessionStartMs: null, lastLive: 0 });
+  hideNudge(); restoreTitle(); drawOverlay(null);
+  $('pill').className = 'pill';
+  $('pillTxt').textContent = isCam() ? 'Waiting for webcam' : 'Waiting for video';
+  $('reportEmpty').textContent = isCam() ? 'Start the webcam to build a report.' : 'Play the video to build a report.';
+  $('readout').textContent = READOUT();
+  buildMetricRows();
+}
+
+function loadVideo(file) {
+  if (!file || !file.type.startsWith('video/') && !/\.(mp4|mov|webm|m4v|mkv|avi)$/i.test(file.name)) return;
+  if (isCam()) setMode('video');
+  if (video.getAttribute('src')) URL.revokeObjectURL(video.src);
+  resetSession();
+  $('drop').hidden = true; $('playerWrap').hidden = false;
+  $('fileName').textContent = file.name;
+  video.src = URL.createObjectURL(file);
+  try { audio ??= new AudioContext(); } catch {}
+}
+
+function setMode(m) {
+  if (m === S.mode) return;
+  stopCam(true);
+  video.pause();
+  if (video.getAttribute('src')) { URL.revokeObjectURL(video.src); video.removeAttribute('src'); video.load(); }
+  S.mode = m;
+  $('modeVideo').setAttribute('aria-pressed', m === 'video');
+  $('modeCam').setAttribute('aria-pressed', m === 'webcam');
+  $('openLbl').hidden = m !== 'video'; $('camBtn').hidden = m !== 'webcam';
+  $('drop').hidden = m !== 'video'; $('camEmpty').hidden = m !== 'webcam';
+  $('playerWrap').hidden = true; $('camDevWrap').hidden = true;
+  $('camBtn').textContent = 'Start webcam';
+  video.controls = m === 'video';
+  $('fileName').textContent = '';
+  resetSession();
+}
+$('modeVideo').onclick = () => setMode('video');
+$('modeCam').onclick = () => setMode('webcam');
+
+function camError(msg) {
+  const p = $('camLead'); p.textContent = msg; p.classList.add('camerr');
+  $('camEmpty').hidden = false; $('playerWrap').hidden = true;
+}
+async function fillDevices(activeId) {
+  try {
+    const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    const sel = $('camDev');
+    sel.innerHTML = cams.map((d, i) => `<option value="${d.deviceId}">${(d.label || 'Camera ' + (i + 1)).replace(/</g, '&lt;')}</option>`).join('');
+    if (activeId) sel.value = activeId;
+    $('camDevWrap').hidden = cams.length < 2;
+  } catch {}
+}
+async function startCam(deviceId) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    camError("This browser can't use a webcam on this page. Open it over https (for example from GitHub Pages) in Chrome or Edge.");
+    return;
+  }
+  $('camBtn').disabled = $('camStart2').disabled = true;
+  try {
+    const size = { width: { ideal: 1280 }, height: { ideal: 720 } };
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false, video: deviceId ? { ...size, deviceId: { exact: deviceId } } : { ...size, facingMode: 'user' } });
+    S.stream?.getTracks().forEach(t => t.stop());
+    S.stream = stream;
+    stream.getVideoTracks()[0].addEventListener('ended', () => { stopCam(); $('fileName').textContent = 'The camera was disconnected.'; });
+    video.srcObject = stream;
+    await video.play();
+    if (!S.sessionStartMs) S.sessionStartMs = Date.now();
+    S.live = true; S.ema = {}; S.lastT = null;
+    $('camLead').classList.remove('camerr');
+    $('camEmpty').hidden = true; $('playerWrap').hidden = false;
+    $('camBtn').textContent = 'Stop webcam';
+    $('fileName').innerHTML = `<span class="live"><i></i>Live since ${clock(0)}</span>`;
+    ticker.postMessage(1000);
+    fillDevices(stream.getVideoTracks()[0].getSettings().deviceId);
+    try { audio ??= new AudioContext(); audio.resume(); } catch {}
+    askNotify();
+    sizePlayer();
+  } catch (e) {
+    console.error(e);
+    camError(e.name === 'NotAllowedError' ? 'Camera access was blocked. Allow the camera from the icon in the address bar, then try again.'
+      : e.name === 'NotFoundError' ? 'No camera was found. Connect one and try again.'
+      : e.name === 'NotReadableError' ? 'The camera is busy in another app. Close that app and try again.'
+      : `The camera could not start (${e.message || e.name}).`);
+  } finally { $('camBtn').disabled = $('camStart2').disabled = false; }
+}
+function stopCam(silent) {
+  ticker.postMessage(0);
+  S.stream?.getTracks().forEach(t => t.stop());
+  S.stream = null; video.srcObject = null;
+  if (!S.live) return;
+  S.live = false; S.lastPose = null; drawOverlay(null); hideNudge(); restoreTitle();
+  if (!silent) {
+    $('camBtn').textContent = 'Resume webcam';
+    $('fileName').textContent = 'Webcam stopped. Your session report is kept; resume to continue it.';
+    $('pill').className = 'pill'; $('pillTxt').textContent = 'Paused';
+  }
+}
+$('camBtn').onclick = () => S.live ? stopCam() : startCam($('camDev').value || undefined);
+$('camStart2').onclick = () => startCam();
+$('camDev').onchange = e => { if (S.live) startCam(e.target.value); };
+
+$('file').onchange = e => { loadVideo(e.target.files[0]); e.target.value = ''; };
+$('openLbl').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+for (const ev of ['dragenter', 'dragover']) document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); });
+for (const ev of ['dragleave', 'drop']) document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); });
+document.addEventListener('drop', e => loadVideo(e.dataTransfer?.files?.[0]));
+
+$('viewSel').onchange = () => { buildMetricRows(); S.dirty = true; if (S.lastPose) afterSample(S.lastPose.s); };
+$('modelSel').onchange = e => loadModel(e.target.value);
+$('uprightBtn').onclick = () => {
+  const r = S.lastPose?.s?.ratio;
+  if (r) { S.uprightManual = r; S.dirty = true; afterSample(S.lastPose.s); }
+};
+
+// ------------------------------------------------------------------ settings
+function buildSettings() {
+  const groups = [['Side view', VIEW_KEYS.side], ['Front view', VIEW_KEYS.front]];
+  let h = '<span class="h">Metric</span><span class="h">Fair above</span><span class="h">Poor above</span>';
+  for (const [g, keys] of groups) {
+    h += `<span class="grp">${g}</span>`;
+    for (const k of keys) h += `<label for="t-${k}-0">${META[k].label} (${META[k].unit})</label>
+      <input id="t-${k}-0" type="number" min="0" step="1" value="${cfg[k][0]}" aria-label="${META[k].label} fair above">
+      <input id="t-${k}-1" type="number" min="0" step="1" value="${cfg[k][1]}" aria-label="${META[k].label} poor above">`;
+  }
+  $('thr').innerHTML = h;
+  $('nudgeSec').value = cfg.nudge; $('camNudgeSec').value = cfg.camNudge;
+  $('soundChk').checked = !!cfg.sound; $('notifyChk').checked = !!cfg.notify;
+}
+function readSettings() {
+  for (const k of Object.keys(META)) {
+    const f = +$(`t-${k}-0`).value, p = +$(`t-${k}-1`).value;
+    if (isFinite(f) && isFinite(p) && f >= 0 && p > f) cfg[k] = [f, p];
+  }
+  const n = +$('nudgeSec').value; if (n >= 1) cfg.nudge = n;
+  const c = +$('camNudgeSec').value; if (c >= 5) cfg.camNudge = c;
+  cfg.sound = $('soundChk').checked;
+  const wantNotify = $('notifyChk').checked && !cfg.notify;
+  cfg.notify = $('notifyChk').checked;
+  if (wantNotify) askNotify();
+  saveCfg(); buildMetricRows(); S.dirty = true;
+  if (S.lastPose) afterSample(S.lastPose.s);
+}
+$('settingsBtn').onclick = () => { buildSettings(); $('settings').showModal(); };
+$('settings').addEventListener('input', readSettings);
+$('closeSettings').onclick = () => $('settings').close();
+$('resetBtn').onclick = () => { cfg = structuredClone(DEFAULTS); saveCfg(); buildSettings(); readSettings(); };
+
+// ------------------------------------------------------------------ CSV
+$('csvBtn').onclick = () => {
+  const rows = [['time_s', 'clock', 'view', 'overall', 'head_forward_deg', 'back_lean_deg', 'head_drop_pct', 'shoulder_tilt_deg', 'head_tilt_deg']];
+  const view = effView(), r = v => v == null ? '' : v.toFixed(1);
+  for (const s of sorted()) {
+    const ck = isCam() && S.sessionStartMs ? new Date(S.sessionStartMs + s.t * 1000).toLocaleTimeString() : '';
+    if (s.none) { rows.push([s.t.toFixed(2), ck, view, 'no person', '', '', '', '', '']); continue; }
+    const info = levelOfSample(s);
+    rows.push([s.t.toFixed(2), ck, view, info.L >= 0 ? ['good', 'fair', 'poor'][info.L] : '', r(s.neck), r(s.back), r(dropOf(s.ratio)), r(s.shoulder), r(s.tilt)]);
+  }
+  const blob = new Blob([rows.map(x => x.join(',')).join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = isCam()
+    ? `webcam-session-${new Date(S.sessionStartMs || Date.now()).toISOString().slice(0, 16).replace(/[T:]/g, '-')}-posture.csv`
+    : ($('fileName').textContent || 'posture').replace(/\.[^.]+$/, '') + '-posture.csv';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ------------------------------------------------------------------ render loop
+new ResizeObserver(() => { sizePlayer(); sizeTimeline(); }).observe($('stage'));
+new ResizeObserver(sizeTimeline).observe(tl);
+let lastReport = 0, lastHead = -1;
+(function loop(now) {
+  requestAnimationFrame(loop);
+  if (!isCam() && (S.dirty || video.currentTime !== lastHead)) {
+    drawTimeline(); lastHead = video.currentTime;
+  }
+  if (S.dirty && now - lastReport > 250) { renderReport(); if (isCam()) drawTimeline(); lastReport = now; S.dirty = false; }
+  const fps = S.fps.length;
+  if (S.landmarker && $('engine').classList.contains('ok'))
+    $('engineTxt').textContent = `Model ready · ${S.delegate}${fps > 1 && !video.paused || S.scanning ? ` · ${fps} frames/s` : ''}`;
+})(performance.now());
+
+buildMetricRows();
+renderReport();
+loadModel($('modelSel').value);
+</script>
+</body>
+</html>
